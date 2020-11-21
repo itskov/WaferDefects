@@ -6,7 +6,7 @@ class WDGmm:
 		self.gmm_model = None
 	
 
-	def train_gmm(case, prp):
+	def train_gmm(self, case, prp):
 	  ref_img = plt.imread(prp.samples_dict[case].reference, 0)
 	  orig_shape = ref_img.shape
 
@@ -14,7 +14,7 @@ class WDGmm:
 	  self.gmm_model = GMM(n_components=3, covariance_type='diag').fit(np.reshape(ref_image_flat, (-1, 1)))
 	 
 
-	def predict_gmm(case, gmm_mode, prp, is_ref=True):
+	def predict_gmm(self, case, gmm_mode, prp, is_ref=True):
 	  asser(self.gmm_model is not None)
 
 	  img = plt.imread(prp.samples_dict[case].reference, 0) if is_ref \
