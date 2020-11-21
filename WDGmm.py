@@ -18,7 +18,7 @@ class WDGmm:
 	 
 
 	def predict_gmm(self, case, prp, is_ref=True):
-	  asser(self.gmm_model is not None)
+	  assert(self.gmm_model is not None)
 
 	  img = plt.imread(prp.samples_dict[case].reference, 0) if is_ref \
 		else plt.imread(prp.samples_dict[case].inspected, 0)
