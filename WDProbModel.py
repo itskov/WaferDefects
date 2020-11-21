@@ -16,15 +16,15 @@ class WDProbModel:
 		for i in range(1, img_ref.shape[0] -1):
 			for j in range(1, img_ref.shape[1] - 1):
 				window =  img_ref[(i-1):(i+2), (j-1):(j+2)]
-				print(window)
+				#print(window)
 				ref_key = tuple([np.sum(window == val) for val in self.labels])
 				insp_ley = img_insp[i - 1, j - 1]
 				key = (ref_key, insp_ley)
 				
 				self.pattern_dict[key] = (self.pattern_dict[key] + 1) if key in self.pattern_dict else 1
 
-				print(self.pattern_dict)
-				input("Press Enter to continue...")
+				#print(self.pattern_dict)
+				#input("Press Enter to continue...")
 		
 		self.count += np.sum(list(self.pattern_dict.values()))
 		print(self.count)
