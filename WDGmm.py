@@ -6,7 +6,7 @@ def train_gmm(case, prp):
   gmm_model = GMM(n_components=3, covariance_type='diag').fit(np.reshape(ref_image_flat, (-1, 1)))
   return gmm_model
 
-def predict_gmm(case, prp, is_ref=True):
+def predict_gmm(case, gmm_mode, prp, is_ref=True):
   img = plt.imread(prp.samples_dict[case].reference, 0) if is_ref \
         else plt.imread(prp.samples_dict[case].inspected, 0)
 
