@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from sklearn.mixture import GaussianMixture as GMM
+
 
 class WDGmm:
 	def __init__(self):
