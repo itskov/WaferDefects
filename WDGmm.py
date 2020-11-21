@@ -31,8 +31,8 @@ class WDGmm:
 
 	  probs_image = np.array([gmm_predict_probs[i,gmm_predict_labels[i]] for i in range(img_flat.size)])
 
-	  print(gmm_predict_labels.shape)
-	  print(probs_image.shape)
+	  #print(gmm_predict_labels.shape)
+	  #print(probs_image.shape)
 
 	  gmm_predict_labels = np.reshape(gmm_predict_labels, orig_shape)
 	  probs_image = np.reshape(probs_image, orig_shape)
