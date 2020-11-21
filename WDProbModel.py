@@ -37,7 +37,7 @@ class WDProbModel:
 	def get_image_probability(self, img_ref, img_insp):
 		assert(np.all(img_ref.shape == img_insp.shape))
 		
-		res = np.zeros(np.array(img_ref.shape) - 1)
+		res = np.zeros(np.array(img_ref.shape) - 2)
 		for i in range(1, img_ref.shape[0] -1):
 			for j in range(1, img_ref.shape[1] - 1):
 				window =  img_ref[(i-1):(i+2), (j-1):(j+2)]
