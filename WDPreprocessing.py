@@ -1,4 +1,4 @@
-from os import path, mkdir
+from os import path, mkdir, makedirs
 from glob import glob
 from collections import namedtuple
 
@@ -62,8 +62,6 @@ class WDPreprocessing:
       if not path.exists(sample_dir):
         mkdir(sample_dir)
 
-
-      print(self.samples_dict[case].inspected)
       inspected_image = cv2.imread(self.samples_dict[case].inspected[0])
       reference_image = cv2.imread(self.samples_dict[case].reference[0])
 
@@ -72,13 +70,23 @@ class WDPreprocessing:
       reference_image = cv2.cvtColor(reference_image, cv2.COLOR_BGR2GRAY)
 
       # aligning inspected to reference
-      print(inspected_image.shape)
-      aligned_inspected, aligned_reference = \
+      aligned_inspected, aligned_reference, shift = \
             WDPreprocessing.align_images(inspected_image, reference_image, 
                                          range(100,200), range(50, 250))
             
-      cv2.imwrite(path.join(sample_dir,'inspected.tif'), inspected_image)
-      cv2.imwrite(path.join(sample_dir,'reference.tif'), reference_image)
+      if case in self.defects_dict:
+        # Updating the defects according to the shift.
+        self.defects_dict[case] = \
+            [(dx[0] - shift[0], dx[1] - shift[1]) for dx in self.defects_dict[case]]
+            
+      new_ins_file = path.join(sample_dir,'inspected.tif')
+      new_ref_file = path.join(sample_dir,'reference.tif')
+      cv2.imwrite(new_ins_file, aligned_inspected)
+      cv2.imwrite(new_ref_file, aligned_reference)
+
+      # Correcting the positions to the aligned directory
+      self.samples_dict[case] = Sample(new_ins_file, new_ref_file)
+
 
   '''
   This method aligns an image to its reference using a kernel on 
@@ -99,7 +107,6 @@ class WDPreprocessing:
 
     # Calculating te shift.
     shift = cross_cor_top_lef - orig_top_left
-    print(shift)
 
     if verbose:
       print('Orig top left: %d, %d' % (orig_top_left[0], orig_top_left[1]))
@@ -144,70 +151,115 @@ class WDPreprocessing:
       plt.title('Inspected')
 
       fig.tight_layout()
-      
-    return(new_inspected, new_reference)
+
+    return(new_inspected, new_reference, list(shift))
 
 
+  def sample_duo_from_case(self, case, dim, count, out_dir):
+        filename_ref = self.samples_dict[case].reference 
+        filename_ins = self.samples_dict[case].inspected
 
-      
+        current_image_ref = cv2.imread(filename_ref, 0)
+        current_image_ins = cv2.imread(filename_ins, 0)
 
+        if not path.exists(out_dir):
+          makedirs(out_dir)
+
+        for i in range(count):
+          y_cord = np.random.randint(dim, current_image_ref.shape[0] - dim, 1)[0]
+          x_cord = np.random.randint(dim, current_image_ref.shape[1] - dim, 1)[0]
+
+          #new_sample = current_image[y_cord:(y_cord + dim), x_cord:(x_cord + dim)]
+          new_sample_ref = self.sample_from_point(current_image_ref,
+                                                  (y_cord, x_cord),
+                                                  dim, rand=False)
+          
+          new_sample_ins = self.sample_from_point(current_image_ins,
+                                                  (y_cord, x_cord),
+                                                  dim, rand=False)
+                    
+
+          for j in range(0,4):
+            new_sample_ref = cv2.rotate(new_sample_ref, cv2.ROTATE_90_CLOCKWISE)
+            new_sample_ins = cv2.rotate(new_sample_ins, cv2.ROTATE_90_CLOCKWISE)
+
+            record = np.concatenate((new_sample_ref[..., None], 
+                                     new_sample_ins[..., None]), axis = 2)
+
+            np.save(path.join(out_dir, "record%d_r%d.npy" % (i, j)), record)
+
+
+        
+  def sample_from_case(self, case, from_ref, dim, count, out_dir, aug=False):
+    filename = self.samples_dict[case].reference if from_ref \
+              else self.samples_dict[case].inspected
     
+    current_image = cv2.imread(filename, 0)
+    #current_image = self.stabilize(current_image)
 
-#plt.imshow(plt.imread('/content/full_frame_data/case2/inspected.tif'))
+    #Debug
+    current_image[current_image > 175] = 255
+    #Debug
 
-"""
-plt.figure()
-plt.imshow(plt.imread('/content/full_frame_data/case1/inspected.tif'))
-defect = prp.defects_dict['case1'][0]
-plt.scatter(defect[0], defect[1])
-defect = prp.defects_dict['case1'][1]
-plt.scatter(defect[0], defect[1])
-defect = prp.defects_dict['case1'][2]
-plt.scatter(defect[0], defect[1])
-"""
+    if not path.exists(out_dir):
+      makedirs(out_dir)
 
-#im1 = plt.imread('/content/full_frame_data/case2/inspected.tif')
-#im2 = plt.imread('/content/full_frame_data/case2/reference.tif')[100:250, 150:400]
-#im2 = plt.imread('/content/full_frame_data/case2/reference.tif')
+    for i in range(count):
+      y_cord = np.random.randint(dim, current_image.shape[0] - dim, 1)[0]
+      x_cord = np.random.randint(dim, current_image.shape[1] - dim, 1)[0]
+
+      #new_sample = current_image[y_cord:(y_cord + dim), x_cord:(x_cord + dim)]
+      new_sample = self.sample_from_point(current_image,(y_cord, x_cord), dim)
+
+      cv2.imwrite(path.join(out_dir, '%s_%d_r0.tif' % (case, i)), new_sample)
+
+      if aug:
+        for j in range(0,4):
+          new_sample = cv2.rotate(new_sample, cv2.ROTATE_90_CLOCKWISE)
+          cv2.imwrite(path.join(out_dir, 
+                                '%s_%d%c_r%d.tif' % (case, i,'r' if from_ref else 'i', 90 * j)), new_sample)
+
+
+  def sample_from_point(self, current_image, point, dim, rand=True):
+
+    current_img = self.stabilize(current_image)
+
+    if rand:
+      upper_left_y = point[0] - np.random.randint(0, dim)
+      upper_left_x = point[1] - np.random.randint(0, dim)
+    else:
+      upper_left_y = point[0]
+      upper_left_x = point[1]
+
+    print('Point', point, 'Dim', dim)
+    print('Upper Left:', upper_left_y, upper_left_x)
+
+    #print(upper_left_x, upper_left_y)
+
+    current_image = current_image[upper_left_y:(upper_left_y + dim), 
+                                  upper_left_x:(upper_left_x + dim)]
+
+    print(current_image.shape)
+
+    return current_image
+
+
+  def stabilize(self, img):
+    offset = 85
+
+    new_img = ((np.int16(img)- np.mean(img)) / np.std(img))
+    new_img = new_img / (np.max(new_img) - np.min(new_img))
+    new_img *= 255
+
+    new_img = np.minimum(new_img, 255)
+    new_img = np.maximum(new_img, 0)
+
+
+    return np.uint8(new_img)
 
 
 
-#im1 = im1[:,:]
-#im2 = im2[:,:]
-
-#plt.figure()
-#plt.imshow(im1[:, :])
-#plt.figure()
-#plt.imshow(im2[:,:])
-
-#im2_b =  cv2.adaptiveThreshold(im2, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,7,7)
-#plt.figure()
-#plt.imshow(im2_b)
-
-"""
-result = []
-methods = [cv2.TM_CCOEFF]
-for i in range(len(methods)):
-    res = cv2.matchTemplate(im1,im2_b,methods[i])
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-    top_left = max_loc
-    print(top_left)
-    print((top_left[0] + im2.shape[1], top_left[1] + im2.shape[0]))
-    bottom_right = (top_left[0] + im2.shape[1], top_left[1] + im2.shape[0])
-
-    im1_rec = im1.copy()
-    cv2.rectangle(im1_rec,top_left, bottom_right, 255, 2)
-    cv2.rectangle(im1_rec,(150, 100), (400,250), 20, 3)
-    plt.figure()
-    plt.imshow(im1_rec)
-
-im2 = plt.imread('/content/full_frame_data/case2/reference.tif')
-plt.figure()
-plt.imshow(im1[:-6,:-5])
-plt.figure()
-plt.imshow(im2[6:,5:])
-"""
-
-    #print ("Method {}  : Result{}") .format(method[i],res)
+#DEBUG
+prp = WDPreprocessing('./WaferDefects/raw_data/defective_examples', './WaferDefects/raw_data/non_defective_examples')
 
 
