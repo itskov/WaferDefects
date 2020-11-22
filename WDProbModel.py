@@ -4,13 +4,15 @@ class WDProbModel:
 	def __init__(self, labels_count):
 		self.labels = range(labels_count)
 		self.pattern_dict = {}
+		self.pattern_dict_count = {}
+
 		self.count = 0
 
 
 	def add_data(self, img_ref, img_insp):
 		assert(np.all(img_ref.shape == img_insp.shape))
 
-		print(img_ref)
+		#print(img_ref)
 
 		# Going over the matrix and collecting data
 		for i in range(1, img_ref.shape[0] -1):
@@ -23,15 +25,18 @@ class WDProbModel:
 				
 				self.pattern_dict[key] = (self.pattern_dict[key] + 1) if key in self.pattern_dict else 1
 
+				self.pattern_dict_count[ref_key] = (self.pattern_dict_count[ref_key] + 1) \
+									if ref_key in self.pattern_dict_count else 1.0
+
 				#print(self.pattern_dict)
 				#input("Press Enter to continue...")
 		
 		self.count += np.sum(list(self.pattern_dict.values()))
-		print(self.count)
+		#print(self.count)
 
 	
 	def get_probability(self, key):
-		return (self.pattern_dict[key] / self.count) if key in self.pattern_dict \
+		return (self.pattern_dict[key] / self.pattern_dict_count[key[0]]) if key in self.pattern_dict \
 			else 0
 	
 	def get_image_probability(self, img_ref, img_insp):
@@ -56,7 +61,11 @@ if __name__ == "__main__":
 	b = np.random.randint(0, 3, (20,20))
 	a.add_data(b, b)
 
-	print(a.get_probability(((3,1,5),0)))
+	print(a.pattern_dict)
+
+	print(a.get_probability(((2,3,4),0)))
+	print(a.get_probability(((2,3,4),1)))
+	print(a.get_probability(((2,3,4),2)))
 		
 
 
